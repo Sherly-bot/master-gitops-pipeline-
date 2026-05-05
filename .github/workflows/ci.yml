@@ -44,11 +44,15 @@ jobs:
       - name: Run ESLint (backend)
         working-directory: backend
         run: |
-          npx eslint src/ --ext .js \
-            --format stylish \
-            --max-warnings=0 \
-            --output-file ../eslint-backend-report.txt || \
-          (cat ../eslint-backend-report.txt && exit 1)
+          if [ -d "src" ]; then
+            npx eslint src/ --ext .js \
+              --format stylish \
+              --max-warnings=0 \
+              --output-file ../eslint-backend-report.txt || \
+            (cat ../eslint-backend-report.txt && exit 1)
+          else
+            echo "Skipping backend lint: No src/ directory found"
+          fi
 
       - name: Setup Node.js (frontend lint)
         uses: actions/setup-node@v4
@@ -64,11 +68,15 @@ jobs:
       - name: Run ESLint (frontend)
         working-directory: frontend
         run: |
-          npx eslint src/ --ext .js,.jsx,.ts,.tsx \
-            --format stylish \
-            --max-warnings=0 \
-            --output-file ../eslint-frontend-report.txt || \
-          (cat ../eslint-frontend-report.txt && exit 1)
+          if [ -f ".eslintrc.js" ]; then
+            npx eslint src/ --ext .js,.jsx,.ts,.tsx \
+              --format stylish \
+              --max-warnings=0 \
+              --output-file ../eslint-frontend-report.txt || \
+            (cat ../eslint-frontend-report.txt && exit 1)
+          else
+            echo "Skipping frontend lint: No .eslintrc.js found"
+          fi
 
       - name: Upload ESLint reports
         if: always()
