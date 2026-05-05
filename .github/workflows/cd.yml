@@ -128,9 +128,10 @@ jobs:
     name: Deploy → Staging
     runs-on: ubuntu-latest
     needs: build-and-push
+    # Only run if dev branch AND the server host secret is provided
     if: >
-      github.ref == 'refs/heads/dev' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+      (github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')) &&
+      secrets.SERVER_HOST != ''
     environment:
       name: staging
       url: ${{ vars.STAGING_URL }}
@@ -229,9 +230,10 @@ jobs:
     name: Deploy → Production
     runs-on: ubuntu-latest
     needs: build-and-push
+    # Only run if main branch AND the prod server host secret is provided
     if: >
-      github.ref == 'refs/heads/main' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+      (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) &&
+      secrets.PROD_SERVER_HOST != ''
     environment:
       name: production             # GitHub requires manual approval for this env
       url: ${{ vars.PRODUCTION_URL }}
