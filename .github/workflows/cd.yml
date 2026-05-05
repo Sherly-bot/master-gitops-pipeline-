@@ -135,25 +135,32 @@ jobs:
 
     steps:
       - name: Check for server host secret
-        if: secrets.SERVER_HOST == ''
+        id: check-secret
         run: |
-          echo "⚠️ Skipping deployment: SERVER_HOST secret is not set."
-          exit 0
+          if [[ -z "${{ secrets.SERVER_HOST }}" ]]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Skipping deployment: SERVER_HOST secret is not set."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Checkout code
-        if: secrets.SERVER_HOST != ''
+        if: steps.check-secret.outputs.exists == 'true'
         uses: actions/checkout@v4
 
       - name: Setup SSH agent
+        if: steps.check-secret.outputs.exists == 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
+        if: steps.check-secret.outputs.exists == 'true'
         run: |
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to staging server
+        if: steps.check-secret.outputs.exists == 'true'
         id: deploy
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -187,6 +194,7 @@ jobs:
           ENDSSH
 
       - name: Health check — staging
+        if: steps.check-secret.outputs.exists == 'true'
         id: health-check
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -212,7 +220,7 @@ jobs:
           exit 1
 
       - name: Rollback staging on health check failure
-        if: failure() && steps.health-check.outcome == 'failure'
+        if: steps.check-secret.outputs.exists == 'true' && failure() && steps.health-check.outcome == 'failure'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -241,25 +249,32 @@ jobs:
 
     steps:
       - name: Check for production server host secret
-        if: secrets.PROD_SERVER_HOST == ''
+        id: check-prod-secret
         run: |
-          echo "⚠️ Skipping production deployment: PROD_SERVER_HOST secret is not set."
-          exit 0
+          if [[ -z "${{ secrets.PROD_SERVER_HOST }}" ]]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Skipping production deployment: PROD_SERVER_HOST secret is not set."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Checkout code
-        if: secrets.PROD_SERVER_HOST != ''
+        if: steps.check-prod-secret.outputs.exists == 'true'
         uses: actions/checkout@v4
 
       - name: Setup SSH agent
+        if: steps.check-prod-secret.outputs.exists == 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
+        if: steps.check-prod-secret.outputs.exists == 'true'
         run: |
           ssh-keyscan -H ${{ secrets.PROD_SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to production
+        if: steps.check-prod-secret.outputs.exists == 'true'
         id: deploy-prod
         env:
           SERVER_HOST: ${{ secrets.PROD_SERVER_HOST }}
@@ -291,6 +306,7 @@ jobs:
           ENDSSH
 
       - name: Health check — production
+        if: steps.check-prod-secret.outputs.exists == 'true'
         id: health-check-prod
         env:
           SERVER_HOST: ${{ secrets.PROD_SERVER_HOST }}
@@ -317,7 +333,7 @@ jobs:
           exit 1
 
       - name: Rollback production on failure
-        if: failure() && steps.health-check-prod.outcome == 'failure'
+        if: steps.check-prod-secret.outputs.exists == 'true' && failure() && steps.health-check-prod.outcome == 'failure'
         env:
           SERVER_HOST: ${{ secrets.PROD_SERVER_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
