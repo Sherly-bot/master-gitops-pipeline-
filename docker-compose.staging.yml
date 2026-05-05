@@ -1,0 +1,82 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════
+#  docker-compose.staging.yml
+#  Override file for STAGING environment
+#  Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+#  Or:    docker compose -f docker-compose.staging.yml up -d  (standalone)
+# ═══════════════════════════════════════════════════════════
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  postgres-data:
+  redis-data:
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/your-username/myapp-backend:staging}
+    container_name: ${PROJECT_NAME:-app}-backend-staging
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    environment:
+      NODE_ENV: staging
+      PORT: 5000
+      MONGO_URI: ${MONGO_URI}
+      POSTGRES_URI: ${POSTGRES_URI}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CLIENT_URL: ${CLIENT_URL}
+    networks:
+      - app-network
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/your-username/myapp-frontend:staging}
+    container_name: ${PROJECT_NAME:-app}-frontend-staging
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:7-jammy
+    container_name: ${PROJECT_NAME:-app}-mongo-staging
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-appdb}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${PROJECT_NAME:-app}-postgres-staging
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME:-app}-redis-staging
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network

@@ -1,0 +1,119 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════
+#  docker-compose.production.yml
+#  Override file for PRODUCTION environment
+#  Includes: resource limits, read-only filesystem, no debug
+# ═══════════════════════════════════════════════════════════
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  postgres-data:
+  redis-data:
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/your-username/myapp-backend:latest}
+    container_name: ${PROJECT_NAME:-app}-backend
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGO_URI: ${MONGO_URI}
+      POSTGRES_URI: ${POSTGRES_URI}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CLIENT_URL: ${CLIENT_URL}
+    networks:
+      - app-network
+    # Resource limits (adjust for your server)
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/your-username/myapp-frontend:latest}
+    container_name: ${PROJECT_NAME:-app}-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:7-jammy
+    container_name: ${PROJECT_NAME:-app}-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    # No external port exposure in production
+    # Accessible only within app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${PROJECT_NAME:-app}-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME:-app}-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
